@@ -12,6 +12,6 @@ from scrapy.pipelines.images import ImagesPipeline
 
 class MyImagesPipeline(ImagesPipeline):
     def file_path(self, request, response=None, info=None, *, item: ImageItem = None):
-        image_filename = f'{item.body_region}/{item.patient_id}.{item.content_type}'
+        image_filename = f'{item.body_region}/{item.patient_id}_{item.filename}'
 
         return image_filename

@@ -20,6 +20,9 @@ class NormalByAgeSpider(scrapy.Spider):
         cases_hrefs = response.xpath('//table')[1:].xpath('.//a/@href').getall()
         self.logger.info(f'Found {len(cases_hrefs)} cases in this page.')
         for page_href in cases_hrefs:
+            if page_href in ['2F%20Tibia%20Fibula.htm']:  # urls that have no image.
+                self.logger.info(f'Skipping {page_href}...')
+                continue
             self.logger.info(f'Following Case {page_href}...')
             yield response.follow(page_href,
                                   callback=self.parse_case,
@@ -29,6 +32,7 @@ class NormalByAgeSpider(scrapy.Spider):
     @staticmethod
     def _process_metainfos(response):
         casename = response.url.split('/')[-1].split('.')[0].replace('%20', ' ')
+        casename = casename.replace('9m Pelvis', '9M Pelvis')
         match = _REGEX_AGE_MALE_REGION.match(casename)
         agemonth = int(match[1])
         if 'm' not in casename[:4]:
@@ -44,13 +48,16 @@ class NormalByAgeSpider(scrapy.Spider):
     def parse_case(response):
         metainfos, casename = NormalByAgeSpider._process_metainfos(response)
         R = response.xpath('//p[@align="left"]')
-        R1 = [r.xpath('./a/@href').getall() for r in R]
-        R1 = [r for r in R1 if len(r) > 0]
-        R2 = [r.xpath('./img/@src').getall() for r in R]
-        R2 = [r for r in R2 if len(r) > 0]
-        R = R1+R2
+        Rfinal = []
+        for xp in ['./a/@href', './img/@src', './font/a/@href', './font/img/@src']:
+            Ri = [r.xpath(xp).getall() for r in R]
+            Ri = [r for r in Ri if len(r) > 0]
+            Rfinal += Ri
+        R = Rfinal
         if len(R) == 0:
-            R = [[r] for r in response.xpath('//p/img/@src').getall()]
+            R1 = [[r] for r in response.xpath('//p/img/@src').getall()]
+            R2 = [[r] for r in response.xpath('//p/a/@href').getall()]
+            R = R1+R2
             assert len(R) > 0
         pid = 0
         for urls in R:
@@ -60,5 +67,6 @@ class NormalByAgeSpider(scrapy.Spider):
                 yield ImageItem(patient_id=patient_id,
                                 image_urls=[response.urljoin(url)],
                                 content_type=url.split('.')[-1],
+                                filename=url.split('/')[-1].replace('%20', ' '),
                                 **metainfos)
             pid += 1

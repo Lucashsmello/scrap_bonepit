@@ -14,5 +14,6 @@ class ImageItem:
     is_male: bool
     body_region: str
     image_urls: list[str]
-    content_type: str
     images = None
+    filename: str
+    content_type: str
